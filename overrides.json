@@ -1,0 +1,22 @@
+{
+  "$comment": "Correções manuais aplicadas por cima dos dados da TCGdex. IDs no formato do catálogo: 'intl:<id>' ou 'ja:<id>'. Ao adicionar uma correção, anote o motivo em $notes.",
+  "dex": {
+    "intl:2021swsh-12": [390],
+    "intl:mfb-22": [101],
+    "intl:mfb-31": [131],
+    "ja:S6K-017": [883],
+    "ja:S6K-072": [883],
+    "ja:SV-P-132": [569]
+  },
+  "rarity": {},
+  "form": {},
+  "excludeSets": [],
+  "$notes": {
+    "intl:2021swsh-12": "Chimchar é #390; a TCGdex marca #391 (Monferno). Encontrado na conferência número x nome (13/11/2026).",
+    "intl:mfb-22": "Electrode é #101; a TCGdex marca #130 (Gyarados). Encontrado na conferência número x nome (13/11/2026).",
+    "intl:mfb-31": "Lapras é #131; a TCGdex marca #129 (Magikarp). Encontrado na conferência número x nome (13/11/2026).",
+    "ja:S6K-017": "ウオチルドンV = Arctovish (#883); a TCGdex marca #881 (Arctozolt). Conferência número x nome (13/11/2026).",
+    "ja:S6K-072": "ウオチルドンV = Arctovish (#883); a TCGdex marca #881 (Arctozolt). Conferência número x nome (13/11/2026).",
+    "ja:SV-P-132": "ダストダス = Garbodor (#569); a TCGdex marca #659 (Bunnelby). Conferência número x nome (13/11/2026)."
+  }
+}

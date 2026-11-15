@@ -1,0 +1,6 @@
+# Finais de linha normalizados (LF no repositório), qualquer que seja o sistema
+* text=auto
+
+# Binários
+*.db binary
+*.gz binary

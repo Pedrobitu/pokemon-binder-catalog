@@ -1,0 +1,163 @@
+# Monta o catálogo do Pokémon Binder todo dia e publica no GitHub Pages quando os dados mudam
+# e passam na conferência (src/check.ts). Sem mudanças, nada é publicado.
+# Detalhes no README, seção "Publicação automática".
+
+name: Catálogo
+
+on:
+  schedule:
+    - cron: '0 9 * * *' # 06:00 em Brasília
+  workflow_dispatch:
+    inputs:
+      permitir_remocoes:
+        description: 'Publicar mesmo com coleções ou mais de 20 cartas removidas (--allow-removals)'
+        type: boolean
+        default: false
+      permitir_esquema:
+        description: 'Publicar com schema_version novo, só com o app já preparado (--allow-schema-change)'
+        type: boolean
+        default: false
+
+permissions:
+  contents: read
+
+concurrency:
+  group: catalogo
+  cancel-in-progress: false
+
+jobs:
+  montar:
+    name: Montar e conferir
+    runs-on: ubuntu-latest
+    timeout-minutes: 30
+    permissions:
+      contents: write # só para o commit que mantém o agendamento ativo
+    outputs:
+      publicar: ${{ steps.decidir.outputs.publicar }}
+      built_at: ${{ steps.decidir.outputs.built_at }}
+      hash: ${{ steps.decidir.outputs.hash }}
+    steps:
+      - uses: actions/checkout@v7
+
+      - uses: actions/setup-node@v7
+        with:
+          node-version: 26
+
+      - name: Baixar o último catálogo publicado
+        run: |
+          SITE="https://${GITHUB_REPOSITORY_OWNER,,}.github.io/${GITHUB_REPOSITORY#*/}/"
+          node src/fetchPublished.ts --url "$SITE" --keep-gz dist/anterior
+
+      - name: Montar (TCGdex + PokéAPI)
+        run: npm run all
+
+      - name: Conferir com o publicado
+        env:
+          PERMITIR_REMOCOES: ${{ inputs.permitir_remocoes }}
+          PERMITIR_ESQUEMA: ${{ inputs.permitir_esquema }}
+        run: |
+          FLAGS=()
+          if [ "$PERMITIR_REMOCOES" = "true" ]; then FLAGS+=(--allow-removals); fi
+          if [ "$PERMITIR_ESQUEMA" = "true" ]; then FLAGS+=(--allow-schema-change); fi
+          node src/check.ts "${FLAGS[@]}"
+
+      - name: Resumo
+        if: always()
+        run: |
+          if [ ! -f dist/check-result.json ]; then
+            echo "A conferência não rodou (ver os passos acima)." >> "$GITHUB_STEP_SUMMARY"
+          elif [ "$(node -p "require('./dist/check-result.json').status")" = "unchanged" ]; then
+            echo "Sem mudanças desde o último catálogo publicado: nada a publicar." >> "$GITHUB_STEP_SUMMARY"
+          else
+            cat reports/mudancas.md >> "$GITHUB_STEP_SUMMARY"
+          fi
+
+      - name: Decidir
+        id: decidir
+        run: |
+          STATUS=$(node -p "require('./dist/check-result.json').status")
+          echo "Conferência: $STATUS"
+          if [ "$STATUS" = "changed" ] || [ "$STATUS" = "first" ]; then
+            echo "publicar=true" >> "$GITHUB_OUTPUT"
+          else
+            echo "publicar=false" >> "$GITHUB_OUTPUT"
+          fi
+          echo "built_at=$(node -p "require('./dist/check-result.json').builtAt")" >> "$GITHUB_OUTPUT"
+          echo "hash=$(node -p "require('./dist/check-result.json').contentHash.slice(0, 12)")" >> "$GITHUB_OUTPUT"
+
+      - name: Empacotar
+        if: steps.decidir.outputs.publicar == 'true'
+        run: |
+          npm run package
+          # O .gz anterior continua no site: um app que leu o manifest antigo ainda consegue baixar
+          cp dist/anterior/*.gz dist/site/ 2>/dev/null || true
+          ls -l dist/site
+
+      - uses: actions/upload-pages-artifact@v5
+        if: steps.decidir.outputs.publicar == 'true'
+        with:
+          path: dist/site
+
+      - uses: actions/upload-artifact@v7
+        if: steps.decidir.outputs.publicar == 'true'
+        with:
+          name: relatorios
+          path: |
+            reports/cobertura.md
+            reports/mudancas.md
+          retention-days: 7
+
+      # O GitHub desliga workflows agendados de repositórios públicos depois de 60 dias sem atividade.
+      # Cada publicação já faz um commit; sem publicação há 50 dias, um commit vazio mantém o agendamento.
+      - name: Manter o agendamento ativo
+        if: steps.decidir.outputs.publicar == 'false'
+        run: |
+          IDADE=$(( ($(date +%s) - $(git log -1 --format=%ct)) / 86400 ))
+          echo "Último commit há $IDADE dias."
+          if [ "$IDADE" -ge 50 ]; then
+            git config user.name "github-actions[bot]"
+            git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
+            git commit --allow-empty -m "Mantém o agendamento diário ativo (sem mudanças há $IDADE dias)"
+            git push
+          fi
+
+  publicar:
+    name: Publicar no GitHub Pages
+    needs: montar
+    if: needs.montar.outputs.publicar == 'true'
+    runs-on: ubuntu-latest
+    timeout-minutes: 15
+    permissions:
+      contents: write # commit dos relatórios
+      pages: write
+      id-token: write
+      actions: read # o deploy-pages lê o artefato desta execução
+    environment:
+      name: github-pages
+      url: ${{ steps.deploy.outputs.page_url }}manifest.json
+    steps:
+      - id: deploy
+        uses: actions/deploy-pages@v5
+
+      - uses: actions/checkout@v7
+
+      - uses: actions/download-artifact@v8
+        with:
+          name: relatorios
+          path: reports
+
+      - name: Guardar os relatórios no repositório
+        env:
+          BUILT_AT: ${{ needs.montar.outputs.built_at }}
+          HASH: ${{ needs.montar.outputs.hash }}
+        run: |
+          git config user.name "github-actions[bot]"
+          git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
+          git add reports
+          if git diff --cached --quiet; then
+            echo "Relatórios iguais aos do repositório."
+            exit 0
+          fi
+          git commit -m "Catálogo publicado: $BUILT_AT ($HASH)"
+          git pull --rebase
+          git push

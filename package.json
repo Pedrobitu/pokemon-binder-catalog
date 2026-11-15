@@ -1,0 +1,25 @@
+{
+  "name": "pokemon-binder-catalog",
+  "version": "0.1.0",
+  "private": true,
+  "description": "Monta o catálogo de cartas do Pokémon Binder (TCGdex + PokéAPI) em SQLite.",
+  "type": "module",
+  "engines": {
+    "node": ">=24"
+  },
+  "scripts": {
+    "fetch": "node src/fetch.ts",
+    "build": "node src/build.ts",
+    "report": "node src/report.ts",
+    "fetch-published": "node src/fetchPublished.ts",
+    "check": "node src/check.ts",
+    "package": "node src/package.ts",
+    "serve": "node src/serve.ts",
+    "all": "node src/fetch.ts && node src/build.ts && node src/report.ts",
+    "typecheck": "tsc --noEmit"
+  },
+  "devDependencies": {
+    "@types/node": "^26.6.6",
+    "typescript": "^7.0.2"
+  }
+}
