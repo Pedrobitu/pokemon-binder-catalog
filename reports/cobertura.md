@@ -1,6 +1,6 @@
 # Relatório de cobertura do catálogo
 
-Gerado em 2026-11-15T04:18:10.307Z · dados baixados em 2026-11-15T04:17:27.307Z · `catalog.db` com 18.9 MB
+Gerado em 2026-11-15T09:01:42.051Z · dados baixados em 2026-11-15T09:01:05.443Z · `catalog.db` com 18.9 MB
 
 Fontes: TCGdex (api.tcgdex.net) + PokéAPI (github.com/PokeAPI/pokeapi). Séries excluídas: 15 coleções do TCG Pocket (digital).
 
