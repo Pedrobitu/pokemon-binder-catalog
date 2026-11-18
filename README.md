@@ -30,10 +30,10 @@ npm run typecheck        # checagem de tipos (precisa de npm install)
 
 ## Publicação automática (GitHub Actions)
 
-`.github/workflows/catalogo.yml`, todo dia às 09:00 UTC (06:00 em Brasília) e pelo botão **Run workflow** em Actions → Catálogo:
+`.github/workflows/catalogo.yml`, todo dia às 09:17 UTC (06:17 em Brasília; o GitHub pode atrasar algumas horas) e pelo botão **Run workflow** em Actions → Catálogo:
 
 1. `fetch-published`: baixa o catálogo publicado agora, a base da conferência (sem nada publicado, é a primeira publicação);
-2. `npm run all`: monta o catálogo com os dados do dia;
+2. `npm run all`: monta o catálogo com os dados do dia. Cada pedido à TCGdex tenta por ~1 min quando ela responde 5xx/429; se a montagem ainda falhar, é refeita até 3 vezes, com 10 min entre elas;
 3. `check`: compara com o publicado. Reprovado, o workflow falha, nada é publicado e o GitHub manda e-mail ao dono do repositório. O motivo fica no resumo da execução;
 4. sem mudanças, para aqui;
 5. com mudanças: `package`, publicação no GitHub Pages (o `.gz` anterior continua no site ao lado do novo) e um commit com `reports/cobertura.md` e `reports/mudancas.md`.
