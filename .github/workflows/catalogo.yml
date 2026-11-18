@@ -6,7 +6,9 @@ name: Catálogo
 
 on:
   schedule:
-    - cron: '0 9 * * *' # 06:00 em Brasília
+    # 06:17 em Brasília. Fora da hora cheia, quando o GitHub mais atrasa os agendamentos
+    # (com '0 9' as execuções saíram de 7 a 10 h depois, em 15–17/11/2026)
+    - cron: '17 9 * * *'
   workflow_dispatch:
     inputs:
       permitir_remocoes:
@@ -29,7 +31,7 @@ jobs:
   montar:
     name: Montar e conferir
     runs-on: ubuntu-latest
-    timeout-minutes: 30
+    timeout-minutes: 45
     permissions:
       contents: write # só para o commit que mantém o agendamento ativo
     outputs:
@@ -48,8 +50,19 @@ jobs:
           SITE="https://${GITHUB_REPOSITORY_OWNER,,}.github.io/${GITHUB_REPOSITORY#*/}/"
           node src/fetchPublished.ts --url "$SITE" --keep-gz dist/anterior
 
+      # A TCGdex às vezes fica instável por alguns minutos (HTTP 503 em 16/11/2026). Cada pedido já
+      # tenta por ~1 min; se ainda assim falhar, a montagem inteira é refeita até 3 vezes, 10 min depois.
       - name: Montar (TCGdex + PokéAPI)
-        run: npm run all
+        run: |
+          for TENTATIVA in 1 2 3; do
+            if npm run all; then exit 0; fi
+            if [ "$TENTATIVA" -lt 3 ]; then
+              echo "::warning::A montagem falhou (tentativa $TENTATIVA de 3). Nova tentativa em 10 min."
+              sleep 600
+            fi
+          done
+          echo "::error::A montagem falhou 3 vezes. Nada foi publicado; os apps continuam com o catálogo atual."
+          exit 1
 
       - name: Conferir com o publicado
         env:
